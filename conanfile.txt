@@ -1,0 +1,13 @@
+[requires]
+boost/1.91.0
+openssl/4.0.1
+simdjson/3.13.0
+
+[options]
+boost/*:header_only=True
+
+[generators]
+CMakeDeps
+
+[layout]
+cmake_layout

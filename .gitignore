@@ -1,0 +1,12 @@
+# build output
+cmake-build-*/
+build/
+
+# IDE
+.idea/
+
+# os
+.DS_Store
+
+# conan provider is committed; per-machine conan files are not
+CMakeUserPresets.json
