@@ -2,20 +2,29 @@
 #include <memory>
 #include <thread>
 #include <boost/asio/io_context.hpp>
+#include "common/amqp_publisher.h"
 #include "feed/feed.h"
 #include "feed/parser.h"
-#include "common/metrics.h"
+#include "common/telemetry.h"
 #include "order-book/order_book.h"
 
-int main() {
-    //Metrics
-    LogSpscRing log_spsc_ring;
+constexpr uint64_t sequence_number {0};
 
-    std::jthread metrics_thread([&log_spsc_ring] {
-        MarketEvent out;
+int main() {
+    //Telemetry
+    TelemetrySpscRing telemetry_ring;
+    boost::asio::io_context ioc_amqp;
+    AmqpPublisher amqp_publisher(ioc_amqp, "amqp://guest:guest@localhost:5672/", "trade_metrics");
+
+    std::jthread amqp_io_thread([&ioc_amqp] {
+        ioc_amqp.run();
+    });
+
+    std::jthread telemetry_thread([&telemetry_ring, &amqp_publisher] {
+        Telemetry out;
         while (true) {
-            if (log_spsc_ring.consume(out)) {
-                log_message(out);
+            if (telemetry_ring.consume(out)) {
+                amqp_publisher.publishMessage("Hello World!");
             } else {
                 std::this_thread::yield();
             }
@@ -23,20 +32,20 @@ int main() {
     });
 
     //Feed Consumption + Parsing
-    boost::asio::io_context ioc;
+    boost::asio::io_context ioc_ws;
     KrakenSpscRing kraken_ring;
     OrderBookRing order_book_ring;
 
-    std::jthread feed_consumer_thread([&ioc, &kraken_ring]() {
-        consume_kraken_websocket(ioc, kraken_ring);
-        ioc.run();
+    std::jthread feed_consumer_thread([&ioc_ws, &kraken_ring]() {
+        consume_kraken_websocket(ioc_ws, kraken_ring);
+        ioc_ws.run();
     });
 
     std::jthread feed_producer_thread([&kraken_ring, &order_book_ring] {
         while (true) {
-            std::string out;
+            ExchangeMessage out;
             if (kraken_ring.consume(out)) {
-                auto event = parse_kraken_book_event(out);
+                auto event = parse_kraken_book_event(out.data);
 
                 if (event) {
                     const MarketEvent& market_event = *event;
@@ -54,7 +63,11 @@ int main() {
         while (true) {
             MarketEvent out;
             if (order_book_ring.consume(out)) {
-                BookEvent book_event = order_book -> update_book(out);
+                auto event = order_book -> update_book(out);
+
+                if (event) {
+                    const BookEvent& book_event = *event;
+                }
             } else {
                 std::this_thread::yield();
             }

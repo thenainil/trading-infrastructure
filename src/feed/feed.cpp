@@ -5,8 +5,7 @@
 #include "feed/feed.h"
 #include <iostream>
 #include <boost/asio/awaitable.hpp>
-#include "common/spsc_ring.h"
-
+#include "templates/spsc_ring.h"
 
 boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, KrakenSpscRing& ring) {
 
@@ -44,7 +43,10 @@ boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, K
     beast::flat_buffer buffer;
     while (true) {
         co_await ws.async_read(buffer, net::use_awaitable);
-        ring.produce(beast::buffers_to_string(buffer.data()));
+        ring.produce(ExchangeMessage {
+            std::chrono::steady_clock::now(),
+            beast::buffers_to_string(buffer.data()),
+        });
         buffer.clear();
     }
 }
@@ -55,7 +57,7 @@ void consume_kraken_websocket(net::io_context& ioc, KrakenSpscRing& ring) {
     const std::string path = "/v2";
 
     const std::string subscribe =
-        R"({"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":10}})";
+        R"({"method":"subscribe","params":{"channel":"book","symbol":["BTC/USD"],"depth":1000}})";
     
     const WebSocketConfig ws_config{host, port, path, subscribe, WsMessageMode::Text};
 

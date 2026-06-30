@@ -5,7 +5,6 @@
 #ifndef TRADING_INFRASTRUCTURE_TIME_UTILS_H
 #define TRADING_INFRASTRUCTURE_TIME_UTILS_H
 
-
 #include <chrono>
 #include <string_view>
 
