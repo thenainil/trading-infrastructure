@@ -5,13 +5,15 @@
 #include "feed/parser.h"
 #include "common/time_utils.h"
 #include <simdjson.h>
-#include <optional>
+#include <cstdint>
 
-std::optional<MarketEvent> parse_kraken_book_event(std::string_view event) {
+
+std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event) {
     MarketEvent out{};
+    out.metadata = event.metadata;
 
     simdjson::ondemand::parser parser;
-    simdjson::padded_string json{event};
+    simdjson::padded_string json{event.data};
 
     auto doc = parser.iterate(json);
     if (doc.error()) return std::nullopt;
@@ -29,11 +31,7 @@ std::optional<MarketEvent> parse_kraken_book_event(std::string_view event) {
     for (auto item : data_arr.value()) {
         auto symbol = item["symbol"].get_string();
         if (symbol.error()) return std::nullopt;
-        out.symbol = std::string(symbol.value());
-
-        auto timestamp = item["timestamp"].get_string();
-        if (timestamp.error()) return std::nullopt;
-        out.timestamp = parse_iso_utc_timestamp(timestamp.value());
+        out.metadata.symbol = std::string(symbol.value());
 
         auto bids = item["bids"].get_array();
         if (!bids.error()) {
@@ -54,7 +52,12 @@ std::optional<MarketEvent> parse_kraken_book_event(std::string_view event) {
                 out.asks.push_back(BookLevel{price.value(), quantity.value()});
                 }
         }
+
+        auto timestamp = item["timestamp"].get_string();
+        if (timestamp.error()) return std::nullopt;
+        out.metadata.exchange_ts = parse_iso_utc_timestamp(timestamp.value());
     }
 
+    out.metadata.parse_complete_ts = std::chrono::steady_clock::now();
     return out;
 }

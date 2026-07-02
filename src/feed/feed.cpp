@@ -7,6 +7,33 @@
 #include <boost/asio/awaitable.hpp>
 #include "templates/spsc_ring.h"
 
+namespace {
+    uint64_t next_monotonic_id() {
+        static uint64_t last_us = 0;
+        static uint64_t same_us_counter = 0;
+
+        const auto now = std::chrono::system_clock::now().time_since_epoch();
+        uint64_t now_us = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(now).count()
+        );
+
+        if (now_us < last_us) {
+            now_us = last_us;
+        }
+
+        if (now_us == last_us) {
+            ++same_us_counter;
+        } else {
+            last_us = now_us;
+            same_us_counter = 0;
+        }
+
+        constexpr uint64_t max_events_per_us = 1'000;
+
+        return now_us * max_events_per_us + same_us_counter;
+    }
+}
+
 boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, KrakenSpscRing& ring) {
 
     std::string host = web_socket_config.host;
@@ -44,9 +71,11 @@ boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, K
     while (true) {
         co_await ws.async_read(buffer, net::use_awaitable);
         ring.produce(ExchangeMessage {
-            std::chrono::steady_clock::now(),
-            beast::buffers_to_string(buffer.data()),
-        });
+                Metadata {
+                    .message_received_wall_ts = std::chrono::system_clock::now(),
+                    .message_received_ts = std::chrono::steady_clock::now(),
+                    .monotonic_id = next_monotonic_id()},
+            beast::buffers_to_string(buffer.data())});
         buffer.clear();
     }
 }

@@ -14,6 +14,8 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl.hpp>
+
+#include "common/metadata.h"
 #include "templates/spsc_ring.h"
 
 namespace beast     = boost::beast;
@@ -25,7 +27,7 @@ namespace ssl       = boost::asio::ssl;
 using tcp       = boost::asio::ip::tcp;
 
 struct ExchangeMessage {
-    std::chrono::high_resolution_clock::time_point received_ts;
+    Metadata metadata;
     std::string data;
 };
 

@@ -8,8 +8,10 @@
 #include <chrono>
 #include <vector>
 #include <string>
-#include <string_view>
 #include <optional>
+
+#include "feed.h"
+#include "common/metadata.h"
 
 struct BookLevel {
     double price{};
@@ -17,13 +19,17 @@ struct BookLevel {
 };
 
 struct MarketEvent {
+    Metadata metadata;
     std::string type;
-    std::string symbol;
     std::vector<BookLevel> bids;
     std::vector<BookLevel> asks;
-    std::chrono::system_clock::time_point timestamp;
 };
 
-std::optional<MarketEvent> parse_kraken_book_event(std::string_view event);
+std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event);
 
 #endif //TRADING_INFRASTRUCTURE_PARSER_H
+
+/*
+WARNINGS:
+1. Checksum Validation over a batch is a good validation strategy OR re-sync the Book
+*/

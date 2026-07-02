@@ -8,10 +8,12 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_library(trading_infrastructure_lib
         src/order_book/order_book.cpp
+        src/order_book/features.cpp
         src/common/time_utils.cpp
-        src/common/telemetry.cpp
+        src/common/metadata.cpp
         src/feed/feed.cpp
-        src/feed/parser.cpp)
+        src/feed/parser.cpp
+        src/strategy/strategy.cpp)
 
 target_include_directories(trading_infrastructure_lib
         PUBLIC
