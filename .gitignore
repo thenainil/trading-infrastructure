@@ -1,6 +1,9 @@
 # build output
 cmake-build-*/
 build/
+engine/conan/
+web/dist/
+web/node_modules/
 
 # IDE
 .idea/

@@ -1,0 +1,10 @@
+//
+// Created by Nainil Patel on 7/6/26.
+//
+
+#ifndef TRADING_INFRASTRUCTURE_RISK_H
+#define TRADING_INFRASTRUCTURE_RISK_H
+
+
+
+#endif //TRADING_INFRASTRUCTURE_RISK_H
