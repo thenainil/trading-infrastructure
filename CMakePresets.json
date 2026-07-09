@@ -12,7 +12,7 @@
       "name": "debug",
       "displayName": "Conan (Debug)",
       "inherits": "base",
-      "binaryDir": "$env{HOME}/.cmake-build/trading-infrastructure/engine/${presetName}",
+      "binaryDir": "$env{HOME}/.cmake-build/trading-infrastructure/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -21,7 +21,7 @@
       "name": "release",
       "displayName": "Conan (Release)",
       "inherits": "base",
-      "binaryDir": "$env{HOME}/.cmake-build/trading-infrastructure/engine/${presetName}",
+      "binaryDir": "$env{HOME}/.cmake-build/trading-infrastructure/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_FLAGS_RELEASE": "-O3 -march=native -DNDEBUG",

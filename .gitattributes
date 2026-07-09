@@ -1,10 +1,9 @@
 # Third-party CMake/Conan integration glue. Keep it in the repo, but do not let
 # it dominate GitHub's language breakdown.
-engine/conan_provider.cmake linguist-vendored
+conan_provider.cmake linguist-vendored
 
 # Project headers are C++ headers even though they use the .h extension.
-engine/include/**/*.h linguist-language=C++
+include/**/*.h linguist-language=C++
 
 # Generated local build output if it ever appears in a branch.
-engine/conan/** linguist-generated
-web/dist/** linguist-generated
+conan/** linguist-generated

@@ -11,17 +11,22 @@ that exercises the mechanics behind latency-sensitive trading infrastructure.
 ## Repository Layout
 
 ```text
-engine/   C++ engine, CMake, Conan, feed handling, order book, features, strategy
-scripts/  Python service stub for future telemetry consumption
-web/      React/TypeScript dashboard stub
+include/  Public headers
+src/      C++ source files
 ```
 
-The C++ engine is the core of the project. The Python and TypeScript pieces are
-currently scaffolding for the future telemetry/dashboard path.
+Build and dependency files live at the repository root:
+
+```text
+CMakeLists.txt
+CMakePresets.json
+conanfile.txt
+conan_provider.cmake
+```
 
 ## Current Status
 
-Implemented in the C++ engine:
+Implemented:
 
 - Connects to Kraken's public WebSocket v2 API over TLS
 - Subscribes to live BTC/USD book updates
@@ -46,8 +51,6 @@ Still in progress:
 - Kraken checksum validation and gap handling
 - Reconnect and resubscription behavior
 - Structured telemetry serialization
-- Proper Python telemetry consumer
-- Real dashboard visualizations
 - Replayable market-data tests
 - Unit tests and microbenchmarks
 - Cleaner shutdown behavior for long-running worker threads
@@ -55,7 +58,7 @@ Still in progress:
 
 ## Architecture
 
-Current C++ pipeline:
+Current pipeline:
 
 ```text
 Kraken WebSocket
@@ -72,14 +75,7 @@ Kraken WebSocket
     -> Telemetry / future risk path
 ```
 
-The design keeps the market-data hot path in C++ and pushes observability toward
-external consumers. The intended long-term flow is:
-
-```text
-C++ engine -> RabbitMQ telemetry -> Python aggregation -> TypeScript dashboard
-```
-
-## Core Engine Components
+## Core Components
 
 ### Feed Client
 
@@ -89,8 +85,8 @@ queue.
 
 Relevant files:
 
-- `engine/include/feed/feed.h`
-- `engine/src/feed/feed.cpp`
+- `include/feed/feed.h`
+- `src/feed/feed.cpp`
 
 ### Parser
 
@@ -99,10 +95,10 @@ into typed `MarketEvent` objects.
 
 Relevant files:
 
-- `engine/include/feed/parser.h`
-- `engine/src/feed/parser.cpp`
-- `engine/include/common/time_utils.h`
-- `engine/src/common/time_utils.cpp`
+- `include/feed/parser.h`
+- `src/feed/parser.cpp`
+- `include/common/time_utils.h`
+- `src/common/time_utils.cpp`
 
 ### SPSC Ring Buffer
 
@@ -112,7 +108,7 @@ ordering, cache-line alignment, and move semantics.
 
 Relevant file:
 
-- `engine/include/templates/spsc_ring.h`
+- `include/templates/spsc_ring.h`
 
 ### Metadata
 
@@ -122,8 +118,8 @@ timestamps, message id, and symbol.
 
 Relevant files:
 
-- `engine/include/common/metadata.h`
-- `engine/src/common/metadata.cpp`
+- `include/common/metadata.h`
+- `src/common/metadata.cpp`
 
 ### Order Book
 
@@ -133,8 +129,8 @@ levels are cached for feature calculation.
 
 Relevant files:
 
-- `engine/include/order-book/order_book.h`
-- `engine/src/order_book/order_book.cpp`
+- `include/order-book/order_book.h`
+- `src/order_book/order_book.cpp`
 
 ### Features
 
@@ -145,8 +141,8 @@ imbalance, top-level OFI, and top-N OFI.
 
 Relevant files:
 
-- `engine/include/order-book/features.h`
-- `engine/src/order_book/features.cpp`
+- `include/order-book/features.h`
+- `src/order_book/features.cpp`
 
 ### Strategy
 
@@ -155,21 +151,18 @@ current strategy is intentionally rule-based and interpretable.
 
 Relevant files:
 
-- `engine/include/strategy/strategy.h`
-- `engine/src/strategy/strategy.cpp`
+- `include/strategy/strategy.h`
+- `src/strategy/strategy.cpp`
 
 ### Telemetry Export
 
-The engine includes an early AMQP publisher path intended for future structured
-telemetry delivery. The current Python and TypeScript apps are stubs around that
-future direction.
+The project includes an early AMQP publisher path intended for future structured
+telemetry delivery.
 
 Relevant files:
 
-- `engine/include/common/amqp_publisher.h`
-- `engine/include/common/metadata.h`
-- `scripts/hello_world.py`
-- `web/src/App.tsx`
+- `include/common/amqp_publisher.h`
+- `include/common/metadata.h`
 
 ## Tech Stack
 
@@ -181,10 +174,8 @@ Relevant files:
 - simdjson
 - AMQP-CPP
 - RabbitMQ
-- Python
-- React / TypeScript / Vite
 
-## Build The C++ Engine
+## Build
 
 Prerequisites:
 
@@ -193,90 +184,45 @@ Prerequisites:
 - Conan
 - RabbitMQ if running the AMQP telemetry path
 
-Configure and build from the `engine/` package:
+Configure and build:
 
 ```bash
-cd engine
-cmake --preset conan
-cmake --build "$HOME/.cmake-build/trading-infrastructure/engine/conan"
+cmake --preset debug
+cmake --build "$HOME/.cmake-build/trading-infrastructure/debug"
 ```
 
 Run:
 
 ```bash
-"$HOME/.cmake-build/trading-infrastructure/engine/conan/trading_infrastructure"
+"$HOME/.cmake-build/trading-infrastructure/debug/trading_infrastructure"
 ```
 
 Release build:
 
 ```bash
-cd engine
 cmake --preset release
-cmake --build "$HOME/.cmake-build/trading-infrastructure/engine/release"
+cmake --build "$HOME/.cmake-build/trading-infrastructure/release"
 ```
 
-CLion should use `engine/CMakeLists.txt` as the CMake project and run the
-`trading_infrastructure` CMake target. Do not run `engine/src/main.cpp` as a
-standalone file; that bypasses CMake, Conan, include paths, source files, and
-link libraries.
+CLion should use the root `CMakeLists.txt` and run the
+`trading_infrastructure` CMake target. Do not run `src/main.cpp` as a standalone
+file; that bypasses CMake, Conan, include paths, source files, and link
+libraries.
 
-## Run The Stub Services
+## Docker
 
-Python stub:
+Build the container:
 
 ```bash
-python3 scripts/hello_world.py
+docker build -t trading-infrastructure .
 ```
 
-Web stub:
+Run it:
 
 ```bash
-cd web
-npm install
-npm run dev
+docker run --rm trading-infrastructure
 ```
 
-The Vite dev server runs on:
-
-```text
-http://localhost:9000
-```
-
-## Known Risks And Open Issues
-
-- The system currently uses Kraken public WebSocket data, so network latency is
-  dominated by public Internet routing and exchange-side timing.
-- Exchange-to-local latency depends on wall-clock synchronization.
-- Local stage latency should use `std::chrono::steady_clock`.
-- Debug output in the hot path will distort latency measurements.
-- Kraken checksum validation is not complete.
-- Gap detection and reconnect recovery are not complete.
-- Depth truncation and out-of-window book updates need stronger handling.
-- Fixed-size price arrays need bounds checks or resync behavior if market price
-  moves outside the supported range.
-- The strategy is an interpretable rule engine, not a validated profitable
-  trading strategy.
-- Risk, execution, order management, and PnL accounting are not implemented.
-- TLS peer verification is not production-hardened yet.
-
-## Project Direction
-
-Planned improvements:
-
-- Implement Kraken checksum validation
-- Add sequence/gap detection and reconnect logic
-- Add robust snapshot/resync behavior
-- Add replayable market-data tests
-- Add unit tests and microbenchmarks
-- Publish structured telemetry over RabbitMQ
-- Build a real telemetry aggregation service
-- Build a live dashboard for latency, market state, features, and decisions
-- Add rolling statistical features and z-score filters
-- Add spread-aware risk checks before any execution path
-
-## Notes
-
-Generated build directories, IDE files, dependency folders, and compiled
-binaries should not be committed. GitHub language statistics are adjusted with
-`.gitattributes` so third-party CMake/Conan glue does not dominate the language
-breakdown.
+Railway can deploy this repo directly from GitHub using the root `Dockerfile`.
+This currently runs as a worker-style process, not an HTTP web service, so the
+useful output is in the Railway logs unless a web server is added later.

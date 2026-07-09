@@ -26,7 +26,8 @@ int main() {
         Metadata out;
         while (true) {
             if (metadata_ring.consume(out)) {
-                amqp_publisher.publishMessage("Hello World!");
+                std::cout << serialize_metadata_to_json(out) << "\n";
+                // amqp_publisher.publishMessage(serialize_metadata_to_json(out));
             } else {
                 std::this_thread::yield();
             }
@@ -82,7 +83,7 @@ int main() {
 
     //Strategy
     StrategyRing strategy_ring;
-    std::jthread strategy_thread([&feature_book_ring, &strategy_ring] {
+    std::jthread strategy_thread([&feature_book_ring, &strategy_ring, &metadata_ring] {
         while (true) {
             FeatureBook out;
 
@@ -92,15 +93,13 @@ int main() {
                 if (event) {
                     const StrategyEvent& strategy_event = *event;
                     strategy_ring.produce(strategy_event);
+                    metadata_ring.produce(strategy_event.metadata);
                 }
             } else {
                 std::this_thread::yield();
             }
         }
     });
-
-    //Risk
-
 
     return 0;
 }
