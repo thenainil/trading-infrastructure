@@ -28,8 +28,3 @@ struct MarketEvent {
 std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event);
 
 #endif //TRADING_INFRASTRUCTURE_PARSER_H
-
-/*
-WARNINGS:
-1. Checksum Validation over a batch is a good validation strategy OR re-sync the Book
-*/

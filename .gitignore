@@ -11,3 +11,9 @@ conan/
 
 # conan provider is committed; per-machine conan files are not
 CMakeUserPresets.json
+
+# dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env
+dashboard/*.log

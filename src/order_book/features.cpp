@@ -124,7 +124,3 @@ std::optional<FeatureBook> Features::calculate_features(const OrderBook& order_b
     feature_book.metadata.feature_calculation_complete_ts = std::chrono::steady_clock::now();
     return feature_book;
 }
-
-/*
-1. So many other features to write, also clean up the namespace, it's all getting too dirty and hard to read.
-*/

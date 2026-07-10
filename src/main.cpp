@@ -16,7 +16,7 @@ int main() {
     //Metadata Telemetry
     MetadataSpscRing metadata_ring;
     boost::asio::io_context ioc_amqp;
-    AmqpPublisher amqp_publisher(ioc_amqp, "amqp://guest:guest@localhost:5672/", "trade_metrics");
+    AmqpPublisher amqp_publisher(ioc_amqp, "amqp://guest:guest@localhost:5672/", "trade_metrics_c");
 
     std::jthread amqp_io_thread([&ioc_amqp] {
         ioc_amqp.run();
@@ -26,8 +26,7 @@ int main() {
         Metadata out;
         while (true) {
             if (metadata_ring.consume(out)) {
-                std::cout << serialize_metadata_to_json(out) << "\n";
-                // amqp_publisher.publishMessage(serialize_metadata_to_json(out));
+                amqp_publisher.publishMessage(serialize_metadata_to_json(out));
             } else {
                 std::this_thread::yield();
             }
@@ -92,7 +91,7 @@ int main() {
 
                 if (event) {
                     const StrategyEvent& strategy_event = *event;
-                    strategy_ring.produce(strategy_event);
+                    // strategy_ring.produce(strategy_event);
                     metadata_ring.produce(strategy_event.metadata);
                 }
             } else {

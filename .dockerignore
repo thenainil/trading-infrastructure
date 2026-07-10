@@ -6,3 +6,8 @@ build
 cmake-build-*
 conan
 CMakeUserPresets.json
+
+dashboard/node_modules
+dashboard/dist
+dashboard/.env
+dashboard/*.log

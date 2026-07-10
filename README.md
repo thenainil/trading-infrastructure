@@ -8,11 +8,27 @@ This is not production trading software and should not be used to place orders
 or make financial decisions. The goal is to build an inspectable systems project
 that exercises the mechanics behind latency-sensitive trading infrastructure.
 
+## Project Status
+
+This repository is being left as a C++ prototype / reference implementation.
+Future development is moving to a Java implementation, likely with this repo
+serving as the systems and latency-learning baseline.
+
+The current C++ code is still useful for:
+
+- Kraken WebSocket ingestion experiments
+- parser/order-book latency measurement
+- RabbitMQ telemetry publishing
+- the TypeScript terminal metrics dashboard
+- reference implementations of the ring buffer, order book, features, and
+  staged thread pipeline
+
 ## Repository Layout
 
 ```text
 include/  Public headers
 src/      C++ source files
+dashboard/ TypeScript terminal metrics dashboard
 ```
 
 Build and dependency files live at the repository root:
@@ -45,12 +61,12 @@ Implemented:
   `STRONG_BUY`, `BUY`, `WAIT`, `SELL`, or `STRONG_SELL`
 - Carries metadata through the pipeline for latency instrumentation
 - Includes an early AMQP/RabbitMQ publisher path for downstream telemetry
+- Includes a terminal dashboard that consumes RabbitMQ latency metrics
 
 Still in progress:
 
 - Kraken checksum validation and gap handling
 - Reconnect and resubscription behavior
-- Structured telemetry serialization
 - Replayable market-data tests
 - Unit tests and microbenchmarks
 - Cleaner shutdown behavior for long-running worker threads
@@ -156,13 +172,25 @@ Relevant files:
 
 ### Telemetry Export
 
-The project includes an early AMQP publisher path intended for future structured
-telemetry delivery.
+The project includes an AMQP publisher path for latency telemetry. The C++
+worker publishes JSON metrics to RabbitMQ using the `trade_metrics_c` routing key.
 
 Relevant files:
 
 - `include/common/amqp_publisher.h`
 - `include/common/metadata.h`
+- `src/common/metadata.cpp`
+
+### Metrics Dashboard
+
+The `dashboard/` directory contains a minimal TypeScript terminal dashboard. It
+consumes the RabbitMQ `trade_metrics_c` queue and prints rolling min, p50, p99,
+p99.9, and max latency values.
+
+Relevant files:
+
+- `dashboard/src/index.ts`
+- `dashboard/package.json`
 
 ## Tech Stack
 
@@ -174,6 +202,7 @@ Relevant files:
 - simdjson
 - AMQP-CPP
 - RabbitMQ
+- Node.js 20+ for the dashboard
 
 ## Build
 
@@ -209,20 +238,98 @@ CLion should use the root `CMakeLists.txt` and run the
 file; that bypasses CMake, Conan, include paths, source files, and link
 libraries.
 
+## RabbitMQ and Dashboard
+
+Start RabbitMQ locally:
+
+```bash
+docker run --rm -it \
+  --name trading-rabbitmq \
+  -p 5672:5672 \
+  -p 15672:15672 \
+  rabbitmq:3-management
+```
+
+RabbitMQ management UI:
+
+```text
+http://localhost:15672
+user: guest
+pass: guest
+```
+
+The dashboard passively checks for an existing `trade_metrics_c` queue. Start the
+C++ worker first, or create the queue manually in the RabbitMQ UI.
+
+Run the dashboard:
+
+```bash
+cd dashboard
+npm install
+npm start
+```
+
+Optional dashboard configuration:
+
+```bash
+RABBITMQ_URL=amqp://localhost:5672 \
+QUEUE_NAME=trade_metrics_c \
+WINDOW_SIZE=10000 \
+REFRESH_MS=1000 \
+npm start
+```
+
 ## Docker
 
-Build the container:
+The root `Dockerfile` contains two build targets:
+
+- default / `worker`: C++ Kraken feed, order book, strategy, and telemetry
+  publisher
+- `dashboard`: TypeScript terminal metrics dashboard
+
+Build the C++ worker container:
 
 ```bash
 docker build -t trading-infrastructure .
 ```
 
-Run it:
+Run it on Linux with host networking so the hardcoded RabbitMQ URL
+`amqp://guest:guest@localhost:5672/` resolves to the host RabbitMQ instance:
+
+```bash
+docker run --rm --network host trading-infrastructure
+```
+
+On Docker Desktop for macOS, `--network host` does not behave like native Linux
+host networking. The current C++ prototype hardcodes the RabbitMQ URL in
+`src/main.cpp`, so either run the binary directly from CLion/local CMake, or
+update the C++ app to read the AMQP URL from an environment variable before
+containerizing it on macOS.
+
+Build the dashboard container:
+
+```bash
+docker build --target dashboard -t trading-dashboard .
+```
+
+Run the dashboard container against local RabbitMQ on Linux:
+
+```bash
+docker run --rm --network host trading-dashboard
+```
+
+On Docker Desktop for macOS, use `host.docker.internal` for RabbitMQ:
+
+```bash
+docker run --rm \
+  -e RABBITMQ_URL=amqp://host.docker.internal:5672 \
+  trading-dashboard
+```
+
+Legacy simple run command:
 
 ```bash
 docker run --rm trading-infrastructure
 ```
 
-Railway can deploy this repo directly from GitHub using the root `Dockerfile`.
-This currently runs as a worker-style process, not an HTTP web service, so the
-useful output is in the Railway logs unless a web server is added later.
+This runs as a worker-style process, not an HTTP web service.

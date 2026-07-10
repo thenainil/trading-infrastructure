@@ -14,7 +14,6 @@ add_library(trading_infrastructure_lib
         src/feed/feed.cpp
         src/feed/parser.cpp
         src/strategy/strategy.cpp
-        src/strategy/risk.cpp
 )
 
 target_include_directories(trading_infrastructure_lib
