@@ -5,10 +5,13 @@ WORKDIR /app/dashboard
 COPY dashboard/package*.json ./
 RUN npm ci
 
-COPY dashboard/tsconfig.json ./
+COPY dashboard/index.html dashboard/tsconfig.json dashboard/tsconfig.server.json dashboard/vite.config.ts ./
+COPY dashboard/server ./server
 COPY dashboard/src ./src
 
-# Terminal metrics dashboard. Defaults:
+RUN npm run build
+
+# React metrics dashboard. Railway should provide PORT automatically.
 # RABBITMQ_URL=amqp://localhost:5672
 # QUEUE_NAME=trade_metrics_c
 CMD ["npm", "start"]
@@ -45,3 +48,8 @@ RUN cmake --build /app/build --parallel
 # If RabbitMQ is outside the container, run on Linux with --network host or
 # update src/main.cpp to read the AMQP URL from an environment variable.
 CMD ["/app/build/trading_infrastructure"]
+
+# Default deploy target for Railway: HTTP React dashboard.
+FROM dashboard AS final
+
+EXPOSE 3000

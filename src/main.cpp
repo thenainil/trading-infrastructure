@@ -16,7 +16,7 @@ int main() {
     //Metadata Telemetry
     MetadataSpscRing metadata_ring;
     boost::asio::io_context ioc_amqp;
-    AmqpPublisher amqp_publisher(ioc_amqp, "amqp://guest:guest@localhost:5672/", "trade_metrics_c");
+    AmqpPublisher amqp_publisher(ioc_amqp, std::getenv("RABBITMQ_URL"), "trade_metrics");
 
     std::jthread amqp_io_thread([&ioc_amqp] {
         ioc_amqp.run();

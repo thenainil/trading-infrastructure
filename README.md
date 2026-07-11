@@ -19,7 +19,7 @@ The current C++ code is still useful for:
 - Kraken WebSocket ingestion experiments
 - parser/order-book latency measurement
 - RabbitMQ telemetry publishing
-- the TypeScript terminal metrics dashboard
+- the React metrics dashboard
 - reference implementations of the ring buffer, order book, features, and
   staged thread pipeline
 
@@ -28,7 +28,7 @@ The current C++ code is still useful for:
 ```text
 include/  Public headers
 src/      C++ source files
-dashboard/ TypeScript terminal metrics dashboard
+dashboard/ React metrics dashboard and AMQP-backed HTTP server
 ```
 
 Build and dependency files live at the repository root:
@@ -61,7 +61,8 @@ Implemented:
   `STRONG_BUY`, `BUY`, `WAIT`, `SELL`, or `STRONG_SELL`
 - Carries metadata through the pipeline for latency instrumentation
 - Includes an early AMQP/RabbitMQ publisher path for downstream telemetry
-- Includes a terminal dashboard that consumes RabbitMQ latency metrics
+- Includes a React dashboard that consumes RabbitMQ latency metrics over a
+  small Node.js HTTP/SSE server
 
 Still in progress:
 
@@ -183,14 +184,28 @@ Relevant files:
 
 ### Metrics Dashboard
 
-The `dashboard/` directory contains a minimal TypeScript terminal dashboard. It
-consumes the RabbitMQ `trade_metrics_c` queue and prints rolling min, p50, p99,
-p99.9, and max latency values.
+The `dashboard/` directory contains a minimal React dashboard. A small Node.js
+server consumes the RabbitMQ `trade_metrics_c` queue, serves the React build,
+and streams rolling min, p50, p99, p99.9, and max latency values to the browser
+over server-sent events.
 
 Relevant files:
 
-- `dashboard/src/index.ts`
+- `dashboard/server/index.ts`
+- `dashboard/src/App.tsx`
 - `dashboard/package.json`
+
+Local dashboard run:
+
+```bash
+cd dashboard
+npm install
+npm run build
+PORT=3000 npm start
+```
+
+Railway deployment uses the Dockerfile's final `dashboard` image by default.
+Set `RABBITMQ_URL` and, if needed, `QUEUE_NAME`; Railway provides `PORT`.
 
 ## Tech Stack
 
