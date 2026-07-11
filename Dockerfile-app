@@ -1,0 +1,30 @@
+FROM python:3.13-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        git \
+        ninja-build \
+        perl \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m pip install --no-cache-dir cmake conan
+
+WORKDIR /app
+
+COPY CMakeLists.txt CMakePresets.json conanfile.txt conan_provider.cmake ./
+COPY include ./include
+COPY src ./src
+
+RUN conan profile detect --force
+RUN cmake -S . -B /app/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+RUN cmake --build /app/build --parallel
+
+# Runtime env vars:
+# RABBITMQ_URL=amqps://...
+# QUEUE_NAME=trade_metrics
+CMD ["/app/build/trading_infrastructure"]
