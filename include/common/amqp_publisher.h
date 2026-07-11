@@ -9,8 +9,15 @@
 #include <amqpcpp/libboostasio.h>
 #include <boost/asio/io_context.hpp>
 #include <iostream>
+#include <openssl/ssl.h>
 #include <string>
 #include <utility>
+
+struct OpenSslInit {
+    OpenSslInit() {
+        OPENSSL_init_ssl(0, nullptr);
+    }
+};
 
 class LoggingAmqpHandler final : public AMQP::LibBoostAsioHandler {
 public:
@@ -34,6 +41,7 @@ public:
 };
 
 class AmqpPublisher {
+    OpenSslInit openssl_init;
     LoggingAmqpHandler handler;
     AMQP::TcpConnection connection;
     AMQP::TcpChannel channel;
@@ -41,6 +49,7 @@ class AmqpPublisher {
 
 public:
     AmqpPublisher(boost::asio::io_context& io_context, const std::string& amqpUrl, std::string queueName) :
+        openssl_init(),
         handler(io_context),
         connection(&handler, AMQP::Address(amqpUrl)),
         channel(&connection),
@@ -54,9 +63,7 @@ public:
     }
 
     void publishMessage(const std::string& message) {
-        if (!channel.publish("", routing_key, message)) {
-            std::cerr << "RabbitMQ publish was not accepted by the client channel\n";
-        }
+        channel.publish("", routing_key, message);
     }
 };
 
