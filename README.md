@@ -174,7 +174,7 @@ Relevant files:
 ### Telemetry Export
 
 The project includes an AMQP publisher path for latency telemetry. The C++
-worker publishes JSON metrics to RabbitMQ using the `trade_metrics_c` routing key.
+worker publishes JSON metrics to RabbitMQ using the `trade_metrics` routing key.
 
 Relevant files:
 
@@ -185,7 +185,7 @@ Relevant files:
 ### Metrics Dashboard
 
 The `dashboard/` directory contains a minimal React dashboard. A small Node.js
-server consumes the RabbitMQ `trade_metrics_c` queue, serves the React build,
+server consumes the RabbitMQ `trade_metrics` queue, serves the React build,
 and streams rolling min, p50, p99, p99.9, and max latency values to the browser
 over server-sent events.
 
@@ -204,8 +204,9 @@ npm run build
 PORT=3000 npm start
 ```
 
-Railway deployment uses the Dockerfile's final `dashboard` image by default.
-Set `RABBITMQ_URL` and, if needed, `QUEUE_NAME`; Railway provides `PORT`.
+Railway deployments use `Dockerfile-app` for the C++ worker and
+`Dockerfile-dashboard` for the dashboard. Set `RABBITMQ_URL` and, if needed,
+`QUEUE_NAME`; Railway provides `PORT` for the dashboard.
 
 ## Tech Stack
 
@@ -273,7 +274,7 @@ user: guest
 pass: guest
 ```
 
-The dashboard passively checks for an existing `trade_metrics_c` queue. Start the
+The dashboard passively checks for an existing `trade_metrics` queue. Start the
 C++ worker first, or create the queue manually in the RabbitMQ UI.
 
 Run the dashboard:
@@ -288,7 +289,7 @@ Optional dashboard configuration:
 
 ```bash
 RABBITMQ_URL=amqp://localhost:5672 \
-QUEUE_NAME=trade_metrics_c \
+QUEUE_NAME=trade_metrics \
 WINDOW_SIZE=10000 \
 REFRESH_MS=1000 \
 npm start
@@ -296,35 +297,27 @@ npm start
 
 ## Docker
 
-The root `Dockerfile` contains two build targets:
-
-- default / `worker`: C++ Kraken feed, order book, strategy, and telemetry
-  publisher
-- `dashboard`: TypeScript terminal metrics dashboard
-
 Build the C++ worker container:
 
 ```bash
-docker build -t trading-infrastructure .
+docker build -f Dockerfile-app -t trading-infrastructure-app .
 ```
 
-Run it on Linux with host networking so the hardcoded RabbitMQ URL
-`amqp://guest:guest@localhost:5672/` resolves to the host RabbitMQ instance:
+Run it against local RabbitMQ on Docker Desktop:
 
 ```bash
-docker run --rm --network host trading-infrastructure
+docker run --rm \
+  -e RABBITMQ_URL=amqp://host.docker.internal:5672 \
+  trading-infrastructure-app
 ```
 
-On Docker Desktop for macOS, `--network host` does not behave like native Linux
-host networking. The current C++ prototype hardcodes the RabbitMQ URL in
-`src/main.cpp`, so either run the binary directly from CLion/local CMake, or
-update the C++ app to read the AMQP URL from an environment variable before
-containerizing it on macOS.
+Run it against cloud RabbitMQ by setting `RABBITMQ_URL` to the `amqps://...`
+connection string.
 
 Build the dashboard container:
 
 ```bash
-docker build --target dashboard -t trading-dashboard .
+docker build -f Dockerfile-dashboard -t trading-dashboard .
 ```
 
 Run the dashboard container against local RabbitMQ on Linux:
@@ -340,11 +333,3 @@ docker run --rm \
   -e RABBITMQ_URL=amqp://host.docker.internal:5672 \
   trading-dashboard
 ```
-
-Legacy simple run command:
-
-```bash
-docker run --rm trading-infrastructure
-```
-
-This runs as a worker-style process, not an HTTP web service.

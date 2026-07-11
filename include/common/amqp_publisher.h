@@ -22,30 +22,20 @@ struct OpenSslInit {
     }
 };
 
-class LoggingAmqpHandler final : public AMQP::LibBoostAsioHandler {
+class AmqpHandler final : public AMQP::LibBoostAsioHandler {
 public:
-    explicit LoggingAmqpHandler(boost::asio::io_context& io_context) :
+    explicit AmqpHandler(boost::asio::io_context& io_context) :
         AMQP::LibBoostAsioHandler(io_context) {}
-
-    void onReady(AMQP::TcpConnection* connection) override {
-        (void) connection;
-        std::cerr << "RabbitMQ connection ready\n";
-    }
 
     void onError(AMQP::TcpConnection* connection, const char* message) override {
         (void) connection;
         std::cerr << "RabbitMQ connection error: " << message << '\n';
     }
-
-    void onClosed(AMQP::TcpConnection* connection) override {
-        (void) connection;
-        std::cerr << "RabbitMQ connection closed\n";
-    }
 };
 
 class AmqpPublisher {
     OpenSslInit openssl_init;
-    LoggingAmqpHandler handler;
+    AmqpHandler handler;
     AMQP::TcpConnection connection;
     AMQP::TcpChannel channel;
     std::string routing_key;
@@ -57,9 +47,6 @@ public:
         connection(&handler, AMQP::Address(amqpUrl)),
         channel(&connection),
         routing_key(std::move(queueName)) {
-        channel.onReady([this] {
-            std::cerr << "RabbitMQ channel ready for queue/routing key: " << routing_key << '\n';
-        });
         channel.onError([](const char* message) {
             std::cerr << "RabbitMQ channel error: " << message << '\n';
         });
