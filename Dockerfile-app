@@ -28,4 +28,4 @@ RUN cmake --build /app/build --parallel
 # Runtime env vars:
 # RABBITMQ_URL=amqps://...
 # QUEUE_NAME=trade_metrics
-CMD ["/app/build/trading_infrastructure"]
+CMD ["sh", "-c", "echo RABBITMQ_URL=${RABBITMQ_URL:+set}; ldconfig -p | grep -E 'libssl\\.so( |$)' || true; getent hosts rattlesnake.rmq.cloudamqp.com || true; exec /app/build/trading_infrastructure"]
