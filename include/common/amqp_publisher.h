@@ -9,6 +9,7 @@
 #include <amqpcpp/libboostasio.h>
 #include <amqpcpp/openssl.h>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
 #include <dlfcn.h>
 #include <iostream>
 #include <openssl/ssl.h>
@@ -35,6 +36,7 @@ public:
 
 class AmqpPublisher {
     OpenSslInit openssl_init;
+    boost::asio::io_context& io_context;
     AmqpHandler handler;
     AMQP::TcpConnection connection;
     AMQP::TcpChannel channel;
@@ -43,6 +45,7 @@ class AmqpPublisher {
 public:
     AmqpPublisher(boost::asio::io_context& io_context, const std::string& amqpUrl, std::string queueName) :
         openssl_init(),
+        io_context(io_context),
         handler(io_context),
         connection(&handler, AMQP::Address(amqpUrl)),
         channel(&connection),
@@ -52,8 +55,10 @@ public:
         });
     }
 
-    void publishMessage(const std::string& message) {
-        channel.publish("", routing_key, message);
+    void publishMessage(std::string message) {
+        boost::asio::post(io_context, [this, message = std::move(message)] {
+            channel.publish("", routing_key, message);
+        });
     }
 };
 
