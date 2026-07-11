@@ -7,7 +7,9 @@
 
 #include <amqpcpp.h>
 #include <amqpcpp/libboostasio.h>
+#include <amqpcpp/openssl.h>
 #include <boost/asio/io_context.hpp>
+#include <dlfcn.h>
 #include <iostream>
 #include <openssl/ssl.h>
 #include <string>
@@ -15,6 +17,7 @@
 
 struct OpenSslInit {
     OpenSslInit() {
+        AMQP::openssl(dlopen("libssl.so", RTLD_LAZY));
         OPENSSL_init_ssl(0, nullptr);
     }
 };
