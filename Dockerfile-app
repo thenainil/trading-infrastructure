@@ -26,6 +26,5 @@ RUN cmake -S . -B /app/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build /app/build --parallel
 
 # Runtime env vars:
-# RABBITMQ_URL=amqps://...
-# QUEUE_NAME=trade_metrics
+# METRICS_WS_URL=ws://dashboard:3000/ingest
 CMD ["/app/build/trading_infrastructure"]

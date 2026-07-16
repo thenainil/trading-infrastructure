@@ -10,7 +10,7 @@ add_library(trading_infrastructure_lib
         src/order_book/order_book.cpp
         src/order_book/features.cpp
         src/common/time_utils.cpp
-        src/common/metadata.cpp
+        src/common/telemetry.cpp
         src/feed/feed.cpp
         src/feed/parser.cpp
         src/strategy/strategy.cpp
@@ -29,7 +29,6 @@ find_package(Boost REQUIRED CONFIG)
 find_package(OpenSSL REQUIRED)
 find_package(simdjson REQUIRED CONFIG)
 find_package(Threads REQUIRED)
-find_package(amqpcpp REQUIRED CONFIG)
 
 target_link_libraries(trading_infrastructure_lib
         PUBLIC
@@ -37,5 +36,4 @@ target_link_libraries(trading_infrastructure_lib
         OpenSSL::SSL
         OpenSSL::Crypto
         simdjson::simdjson
-        Threads::Threads
-        amqpcpp)
+        Threads::Threads)

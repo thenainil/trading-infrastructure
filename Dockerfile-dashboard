@@ -13,8 +13,7 @@ RUN npm run build
 
 # Railway provides PORT automatically.
 # Runtime env vars:
-# RABBITMQ_URL=amqps://...
-# QUEUE_NAME=trade_metrics
+# METRICS_INGEST_PATH=/ingest
 EXPOSE 3000
 
 CMD ["npm", "start"]

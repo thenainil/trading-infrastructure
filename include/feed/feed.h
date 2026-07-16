@@ -15,7 +15,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl.hpp>
 
-#include "common/metadata.h"
+#include "common/telemetry.h"
 #include "templates/spsc_ring.h"
 
 namespace beast     = boost::beast;
@@ -27,7 +27,7 @@ namespace ssl       = boost::asio::ssl;
 using tcp       = boost::asio::ip::tcp;
 
 struct ExchangeMessage {
-    Metadata metadata;
+    TelemetryData telemetry_data;
     std::string data;
 };
 

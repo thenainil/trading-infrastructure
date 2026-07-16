@@ -59,6 +59,19 @@ h2 {
   letter-spacing: 0;
 }
 
+.sourceLink {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #2563eb;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -91,7 +104,7 @@ h2 {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -134,6 +147,482 @@ h2 {
   gap: 16px;
   padding: 18px 20px;
   border-bottom: 1px solid #e2e8ef;
+}
+
+.chartPanel {
+  margin-bottom: 18px;
+}
+
+.orderBookPanel {
+  margin-bottom: 18px;
+}
+
+.featuresPanel {
+  margin-bottom: 18px;
+}
+
+.decisionChartPanel {
+  margin-bottom: 18px;
+}
+
+.depthBook {
+  padding: 18px 20px 20px;
+}
+
+.bookTopLine {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bookTopLine div {
+  min-width: 0;
+}
+
+.bookTopLine span {
+  display: block;
+  margin-bottom: 4px;
+  color: #66778c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.bookTopLine strong {
+  display: block;
+  overflow: hidden;
+  color: #101624;
+  font-size: 1.28rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookTopLine div:nth-child(2) {
+  text-align: center;
+}
+
+.bookTopLine div:nth-child(3) {
+  text-align: right;
+}
+
+.bidText {
+  color: #0f766e;
+}
+
+.askText {
+  color: #dc4b38;
+}
+
+.depthChartWrap {
+  overflow: hidden;
+  border-top: 1px solid #edf1f5;
+  border-bottom: 1px solid #edf1f5;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #edf1f5 32px),
+    #ffffff;
+}
+
+.depthChart {
+  display: block;
+  width: 100%;
+  height: 260px;
+}
+
+.depthGrid {
+  stroke: #dce4ec;
+  stroke-width: 1;
+}
+
+.depthArea {
+  opacity: 0.34;
+}
+
+.depthBidArea {
+  fill: #5eead4;
+}
+
+.depthAskArea {
+  fill: #fca5a5;
+}
+
+.depthLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.depthBidLine {
+  stroke: #14b8a6;
+}
+
+.depthAskLine {
+  stroke: #ef604f;
+}
+
+.depthMidLine {
+  stroke: #475569;
+  stroke-dasharray: 4 5;
+  stroke-width: 1.4;
+}
+
+.depthMidLabel {
+  fill: #101624;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  text-anchor: middle;
+}
+
+.depthAxisLabel {
+  fill: #66778c;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
+.depthStats {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  color: #66778c;
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.depthTable {
+  overflow: hidden;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+}
+
+.depthTableHeader,
+.depthTableRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+}
+
+.depthTableHeader {
+  min-height: 34px;
+  padding: 0 16px;
+  border-bottom: 1px solid #edf1f5;
+  color: #101624;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.depthTableRow {
+  min-height: 32px;
+  padding: 0 16px;
+  color: #263244;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.depthTableRow:nth-child(odd) {
+  background: #fbfcfe;
+}
+
+.depthTableRow span,
+.depthTableRow strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookEmpty {
+  padding: 28px 20px;
+  color: #66778c;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px 20px 20px;
+}
+
+.featureItem {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.featureItem span {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 8px;
+  color: #66778c;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.featureItem strong {
+  display: block;
+  overflow: hidden;
+  color: #101624;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.featuresEmpty {
+  grid-column: 1 / -1;
+  padding: 28px 20px;
+  color: #66778c;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.decisionTimelineWrap {
+  padding: 18px 20px 20px;
+}
+
+.decisionTimeline {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  overflow: hidden;
+  border: 1px solid #d9e1e8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.decisionSegment {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-right: 1px solid rgb(255 255 255 / 62%);
+}
+
+.decisionSegment:last-child {
+  border-right: 0;
+}
+
+.decisionSegmentStrongBuy,
+.legendStrongBuy::before {
+  background: #16a34a;
+}
+
+.decisionSegmentBuy,
+.legendBuy::before {
+  background: #facc15;
+}
+
+.decisionSegmentWait,
+.legendWait::before {
+  background: #ffffff;
+}
+
+.decisionSegmentSell,
+.legendSell::before {
+  background: #dc2626;
+}
+
+.decisionSegmentStrongSell,
+.legendStrongSell::before {
+  background: #7e22ce;
+}
+
+.decisionTimelineEmpty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: #66778c;
+  font-size: 0.88rem;
+}
+
+.decisionLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 12px;
+  color: #66778c;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.decisionLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.decisionLegend span::before {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  content: "";
+}
+
+.legendWait::before {
+  border: 1px solid #101624;
+}
+
+.decisionSummary {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.decisionSummary div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #edf1f5;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.decisionSummary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #66778c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.decisionSummary strong {
+  display: block;
+  overflow: hidden;
+  color: #101624;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decisionSummary strong.decisionSegmentStrongBuy {
+  color: #166534;
+  background: transparent;
+}
+
+.decisionSummary strong.decisionSegmentBuy {
+  color: #a16207;
+  background: transparent;
+}
+
+.decisionSummary strong.decisionSegmentWait {
+  color: #64748b;
+  background: transparent;
+}
+
+.decisionSummary strong.decisionSegmentSell {
+  color: #991b1b;
+  background: transparent;
+}
+
+.decisionSummary strong.decisionSegmentStrongSell {
+  color: #7e22ce;
+  background: transparent;
+}
+
+.sectionGroup {
+  margin-top: 22px;
+}
+
+.sectionHeader {
+  margin-bottom: 12px;
+}
+
+.sectionHeader h2 {
+  font-size: 1.35rem;
+}
+
+.chartWrap {
+  padding: 18px 20px 20px;
+}
+
+.latencyChart {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+
+.chartGrid {
+  stroke: #dce4ec;
+  stroke-width: 1;
+}
+
+.chartLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.chartLineGreen {
+  stroke: #166534;
+}
+
+.chartLineRed {
+  stroke: #991b1b;
+}
+
+.chartDotGreen {
+  fill: #166534;
+}
+
+.chartDotRed {
+  fill: #991b1b;
+}
+
+.chartLabel {
+  fill: #66778c;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chartLegend {
+  fill: #66778c;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.chartHitPoint {
+  fill: transparent;
+  outline: none;
+  pointer-events: all;
+}
+
+.chartHoverLine {
+  stroke: #94a3b8;
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+}
+
+.chartTooltip rect {
+  fill: #101624;
+  opacity: 0.94;
+}
+
+.chartTooltip text {
+  fill: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .tableWrap {
@@ -187,6 +676,12 @@ tbody tr:last-child td {
   font-size: 0.96rem;
 }
 
+.metricName em {
+  color: #b45309;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
 .empty {
   height: 180px;
   color: #66778c;
@@ -206,6 +701,43 @@ tbody tr:last-child td {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .bookTopLine {
+    grid-template-columns: 1fr;
+  }
+
+  .bookTopLine div,
+  .bookTopLine div:nth-child(2),
+  .bookTopLine div:nth-child(3) {
+    text-align: left;
+  }
+
+  .depthBook {
+    padding: 14px;
+  }
+
+  .depthChart {
+    height: 220px;
+  }
+
+  .depthTableHeader,
+  .depthTableRow {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .featuresGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px;
+  }
+
+  .decisionTimelineWrap {
+    padding: 14px;
+  }
+
+  .decisionSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
@@ -216,5 +748,13 @@ tbody tr:last-child td {
   .panelHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .featuresGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .decisionSummary {
+    grid-template-columns: 1fr;
   }
 }

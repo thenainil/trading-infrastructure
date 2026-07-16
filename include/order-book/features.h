@@ -7,7 +7,7 @@
 #include "order_book.h"
 
 struct FeatureBook {
-    Metadata metadata;
+    TelemetryData telemetry_data;
 
     double top_bid{};
     double top_ask{};

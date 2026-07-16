@@ -7,10 +7,9 @@
 #include <simdjson.h>
 #include <cstdint>
 
-
 std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event) {
     MarketEvent out{};
-    out.metadata = event.metadata;
+    out.telemetry_data = event.telemetry_data;
 
     simdjson::ondemand::parser parser;
     simdjson::padded_string json{event.data};
@@ -31,7 +30,7 @@ std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event)
     for (auto item : data_arr.value()) {
         auto symbol = item["symbol"].get_string();
         if (symbol.error()) return std::nullopt;
-        out.metadata.symbol = std::string(symbol.value());
+        out.telemetry_data.identifier.symbol = std::string(symbol.value());
 
         auto bids = item["bids"].get_array();
         if (!bids.error()) {
@@ -55,9 +54,9 @@ std::optional<MarketEvent> parse_kraken_book_event(const ExchangeMessage& event)
 
         auto timestamp = item["timestamp"].get_string();
         if (timestamp.error()) return std::nullopt;
-        out.metadata.exchange_ts = parse_iso_utc_timestamp(timestamp.value());
+        out.telemetry_data.latency_metrics.exchange_ts = parse_iso_utc_timestamp(timestamp.value());
     }
 
-    out.metadata.parse_complete_ts = std::chrono::steady_clock::now();
+    out.telemetry_data.latency_metrics.parse_complete_ts = std::chrono::steady_clock::now();
     return out;
 }

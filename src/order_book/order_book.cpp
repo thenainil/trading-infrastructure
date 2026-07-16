@@ -5,7 +5,7 @@
 #include "order-book/order_book.h"
 
 bool OrderBook::update_book(const MarketEvent& market_event) {
-    metadata = market_event.metadata;
+    telemetry_data = market_event.telemetry_data;
 
     const std::vector<BookLevel>& asks = market_event.asks;
     const std::vector<BookLevel>& bids = market_event.bids;
@@ -41,8 +41,8 @@ bool OrderBook::update_book(const MarketEvent& market_event) {
     }
 
     set_top_n_prices();
-
-    metadata.order_book_complete_ts = std::chrono::steady_clock::now();
+    set_book_telemetry();
+    telemetry_data.latency_metrics.order_book_complete_ts = std::chrono::steady_clock::now();
     return true;
 }
 
@@ -133,6 +133,19 @@ void OrderBook::set_top_n_prices() {
 
     top_bid = top_n_bids[0];
     top_ask = top_n_asks[0];
+}
+
+void OrderBook::set_book_telemetry() {
+    for (std::size_t i = 0; i < N; ++i) {
+        telemetry_data.book_telemetry.bids[i] = BookLevelTelemetry{
+            .price = top_n_bids[i].price,
+            .quantity = top_n_bids[i].quantity
+        };
+        telemetry_data.book_telemetry.asks[i] = BookLevelTelemetry{
+            .price = top_n_asks[i].price,
+            .quantity = top_n_asks[i].quantity
+        };
+    }
 }
 
 void OrderBook::set_price_level_active(const size_t& idx, const bool& isBid) {

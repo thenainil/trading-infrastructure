@@ -13,11 +13,10 @@
 
 using OrderBookRing = spsc_ring<MarketEvent, 1024>;
 constexpr double tick_size = 0.1;
-constexpr std::size_t N = 10;
 
 class OrderBook {
 public:
-    Metadata metadata;
+    TelemetryData telemetry_data;
     bool update_book(const MarketEvent& market_event);
     std::array<BookLevel, N> get_top_n_levels(const bool &isBid) const;
 
@@ -34,6 +33,7 @@ private:
     static double index_to_price(std::size_t index);
     static std::size_t price_to_index(double price);
     void set_top_n_prices();
+    void set_book_telemetry();
     void set_price_level_active(const size_t& idx, const bool& isBid);
     void set_price_level_inactive(const size_t& idx, const bool& isBid);
 };

@@ -1,11 +1,10 @@
-#include <iostream>
 #include <memory>
 #include <thread>
 #include <boost/asio/io_context.hpp>
-#include "common/amqp_publisher.h"
+#include "common/websocket_publisher.h"
 #include "feed/feed.h"
 #include "feed/parser.h"
-#include "common/metadata.h"
+#include "common/telemetry.h"
 #include "order-book/features.h"
 #include "order-book/order_book.h"
 #include "strategy/strategy.h"
@@ -13,41 +12,44 @@
 constexpr uint64_t sequence_number {0};
 
 int main() {
-    //Metadata Telemetry
-    MetadataSpscRing metadata_ring;
-    boost::asio::io_context ioc_amqp;
-    AmqpPublisher amqp_publisher(ioc_amqp, std::getenv("RABBITMQ_URL"), "trade_metrics");
+    //Telemetry
+    TelemetrySpscRing telemetry_ring{};
+    boost::asio::io_context ioc_telemetry{};
+    WebSocketPublisher telemetry_publisher(
+        ioc_telemetry,
+        telemetry_ws::parse_endpoint(std::getenv("METRICS_WS_URL")));
 
-    std::jthread amqp_io_thread([&ioc_amqp] {
-        ioc_amqp.run();
+    std::jthread telemetry_io_thread([&ioc_telemetry] {
+        ioc_telemetry.run();
     });
 
-    std::jthread telemetry_thread([&metadata_ring, &amqp_publisher] {
-        Metadata out;
+    std::jthread telemetry_submit_thread([&telemetry_ring, &telemetry_publisher] {
+        TelemetryData telemetry_data;
         while (true) {
-            if (metadata_ring.consume(out)) {
-                amqp_publisher.publishMessage(serialize_metadata_to_json(out));
+            if (telemetry_ring.consume(telemetry_data)) {
+                telemetry_publisher.publishMessage(serialize_metadata_to_json(telemetry_data));
             } else {
                 std::this_thread::yield();
             }
         }
     });
 
-    //Feed Consumption + Parsing
+    //Feed
     boost::asio::io_context ioc_ws;
     KrakenSpscRing kraken_ring;
-    OrderBookRing order_book_ring;
 
-    std::jthread feed_consumer_thread([&ioc_ws, &kraken_ring]() {
+    std::jthread kraken_consumer_thread([&ioc_ws, &kraken_ring]() {
         consume_kraken_websocket(ioc_ws, kraken_ring);
         ioc_ws.run();
     });
 
+    //Parse
+    OrderBookRing order_book_ring;
     std::jthread feed_producer_thread([&kraken_ring, &order_book_ring] {
         while (true) {
-            ExchangeMessage out;
-            if (kraken_ring.consume(out)) {
-                auto event = parse_kraken_book_event(out);
+            ExchangeMessage exchange_message;
+            if (kraken_ring.consume(exchange_message)) {
+                auto event = parse_kraken_book_event(exchange_message);
 
                 if (event) {
                     const MarketEvent& market_event = *event;
@@ -59,19 +61,19 @@ int main() {
         }
     });
 
-    //Order Book
+    //Order Book + Features
     std::unique_ptr<OrderBook> order_book = std::make_unique<OrderBook>();
     std::unique_ptr<Features> features = std::make_unique<Features>();
     FeatureBookRing feature_book_ring;
 
     std::jthread order_book_thread([&order_book_ring, &feature_book_ring, &order_book, &features] {
         while (true) {
-            MarketEvent out;
-            if (order_book_ring.consume(out)) {
-                auto success = order_book -> update_book(out);
+            MarketEvent market_event;
+            if (order_book_ring.consume(market_event)) {
+                auto update_success = order_book -> update_book(market_event);
 
-                if (success) {
-                    FeatureBook feature_book = *features -> calculate_features(*order_book);
+                if (update_success) {
+                    const FeatureBook feature_book = *features -> calculate_features(*order_book);
                     feature_book_ring.produce(feature_book);
                 }
             } else {
@@ -81,18 +83,16 @@ int main() {
     });
 
     //Strategy
-    StrategyRing strategy_ring;
-    std::jthread strategy_thread([&feature_book_ring, &strategy_ring, &metadata_ring] {
+    std::jthread strategy_thread([&feature_book_ring, &telemetry_ring] {
         while (true) {
-            FeatureBook out;
+            FeatureBook feature_book;
 
-            if (feature_book_ring.consume(out)) {
-                auto event = determine_order_from_features(out);
+            if (feature_book_ring.consume(feature_book)) {
+                auto event = determine_order_from_features(feature_book);
 
                 if (event) {
                     const StrategyEvent& strategy_event = *event;
-                    // strategy_ring.produce(strategy_event);
-                    metadata_ring.produce(strategy_event.metadata);
+                    telemetry_ring.produce(strategy_event.telemetry_data);
                 }
             } else {
                 std::this_thread::yield();

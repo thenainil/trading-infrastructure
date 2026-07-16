@@ -19,7 +19,7 @@ const char* to_string(const OrderDecision decision) {
 
 std::optional<StrategyEvent> determine_order_from_features(const FeatureBook& features) {
     StrategyEvent strategy_event{};
-    strategy_event.metadata = features.metadata;
+    strategy_event.telemetry_data = features.telemetry_data;
 
     //default
     strategy_event.order_decision = OrderDecision::WAIT;
@@ -56,6 +56,8 @@ std::optional<StrategyEvent> determine_order_from_features(const FeatureBook& fe
         }
     }
 
-    strategy_event.metadata.strategy_decision_complete_ts = std::chrono::steady_clock::now();
+    strategy_event.telemetry_data.strategy_telemetry.decision = to_string(strategy_event.order_decision);
+    strategy_event.telemetry_data.latency_metrics.strategy_decision_complete_ts = std::chrono::steady_clock::now();
+
     return strategy_event;
 }

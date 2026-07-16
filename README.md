@@ -18,7 +18,7 @@ The current C++ code is still useful for:
 
 - Kraken WebSocket ingestion experiments
 - parser/order-book latency measurement
-- RabbitMQ telemetry publishing
+- direct WebSocket telemetry publishing
 - the React metrics dashboard
 - reference implementations of the ring buffer, order book, features, and
   staged thread pipeline
@@ -28,7 +28,7 @@ The current C++ code is still useful for:
 ```text
 include/  Public headers
 src/      C++ source files
-dashboard/ React metrics dashboard and AMQP-backed HTTP server
+dashboard/ React metrics dashboard and WebSocket-backed HTTP server
 ```
 
 Build and dependency files live at the repository root:
@@ -60,9 +60,9 @@ Implemented:
 - Emits rule-based strategy decisions:
   `STRONG_BUY`, `BUY`, `WAIT`, `SELL`, or `STRONG_SELL`
 - Carries metadata through the pipeline for latency instrumentation
-- Includes an early AMQP/RabbitMQ publisher path for downstream telemetry
-- Includes a React dashboard that consumes RabbitMQ latency metrics over a
-  small Node.js HTTP/SSE server
+- Publishes latency telemetry directly to the dashboard over WebSocket
+- Includes a React dashboard that ingests latency metrics over WebSocket and
+  streams aggregates to the browser over a small Node.js HTTP/SSE server
 
 Still in progress:
 
@@ -173,21 +173,22 @@ Relevant files:
 
 ### Telemetry Export
 
-The project includes an AMQP publisher path for latency telemetry. The C++
-worker publishes JSON metrics to RabbitMQ using the `trade_metrics` routing key.
+The C++ worker publishes JSON latency metrics directly to the dashboard over a
+WebSocket connection. Set `METRICS_WS_URL` to the dashboard ingest endpoint;
+the default is `ws://127.0.0.1:3000/ingest`.
 
 Relevant files:
 
-- `include/common/amqp_publisher.h`
+- `include/common/websocket_publisher.h`
 - `include/common/metadata.h`
 - `src/common/metadata.cpp`
 
 ### Metrics Dashboard
 
 The `dashboard/` directory contains a minimal React dashboard. A small Node.js
-server consumes the RabbitMQ `trade_metrics` queue, serves the React build,
-and streams rolling min, p50, p99, p99.9, and max latency values to the browser
-over server-sent events.
+server accepts worker telemetry on a WebSocket ingest endpoint, serves the React
+build, and streams rolling min, p50, p99, p99.9, and max latency values to the
+browser over server-sent events.
 
 Relevant files:
 
@@ -205,8 +206,9 @@ PORT=3000 npm start
 ```
 
 Railway deployments use `Dockerfile-app` for the C++ worker and
-`Dockerfile-dashboard` for the dashboard. Set `RABBITMQ_URL` and, if needed,
-`QUEUE_NAME`; Railway provides `PORT` for the dashboard.
+`Dockerfile-dashboard` for the dashboard. Set `METRICS_WS_URL` on the worker to
+the dashboard URL, for example `ws://trading-dashboard:3000/ingest`; Railway
+provides `PORT` for the dashboard.
 
 ## Tech Stack
 
@@ -216,8 +218,6 @@ Railway deployments use `Dockerfile-app` for the C++ worker and
 - Boost.Asio / Boost.Beast
 - OpenSSL
 - simdjson
-- AMQP-CPP
-- RabbitMQ
 - Node.js 20+ for the dashboard
 
 ## Build
@@ -227,7 +227,6 @@ Prerequisites:
 - C++23-capable compiler
 - CMake
 - Conan
-- RabbitMQ if running the AMQP telemetry path
 
 Configure and build:
 
@@ -254,28 +253,7 @@ CLion should use the root `CMakeLists.txt` and run the
 file; that bypasses CMake, Conan, include paths, source files, and link
 libraries.
 
-## RabbitMQ and Dashboard
-
-Start RabbitMQ locally:
-
-```bash
-docker run --rm -it \
-  --name trading-rabbitmq \
-  -p 5672:5672 \
-  -p 15672:15672 \
-  rabbitmq:3-management
-```
-
-RabbitMQ management UI:
-
-```text
-http://localhost:15672
-user: guest
-pass: guest
-```
-
-The dashboard passively checks for an existing `trade_metrics` queue. Start the
-C++ worker first, or create the queue manually in the RabbitMQ UI.
+## Dashboard Telemetry
 
 Run the dashboard:
 
@@ -288,11 +266,17 @@ npm start
 Optional dashboard configuration:
 
 ```bash
-RABBITMQ_URL=amqp://localhost:5672 \
-QUEUE_NAME=trade_metrics \
+METRICS_INGEST_PATH=/ingest \
 WINDOW_SIZE=10000 \
 REFRESH_MS=1000 \
 npm start
+```
+
+Run the C++ worker against the dashboard:
+
+```bash
+METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
+"$HOME/.cmake-build/trading-infrastructure/debug/trading_infrastructure"
 ```
 
 ## Docker
@@ -303,16 +287,13 @@ Build the C++ worker container:
 docker build -f Dockerfile-app -t trading-infrastructure-app .
 ```
 
-Run it against local RabbitMQ on Docker Desktop:
+Run it against a dashboard reachable from the worker container:
 
 ```bash
 docker run --rm \
-  -e RABBITMQ_URL=amqp://host.docker.internal:5672 \
+  -e METRICS_WS_URL=ws://host.docker.internal:3000/ingest \
   trading-infrastructure-app
 ```
-
-Run it against cloud RabbitMQ by setting `RABBITMQ_URL` to the `amqps://...`
-connection string.
 
 Build the dashboard container:
 
@@ -320,16 +301,8 @@ Build the dashboard container:
 docker build -f Dockerfile-dashboard -t trading-dashboard .
 ```
 
-Run the dashboard container against local RabbitMQ on Linux:
+Run the dashboard container:
 
 ```bash
-docker run --rm --network host trading-dashboard
-```
-
-On Docker Desktop for macOS, use `host.docker.internal` for RabbitMQ:
-
-```bash
-docker run --rm \
-  -e RABBITMQ_URL=amqp://host.docker.internal:5672 \
-  trading-dashboard
+docker run --rm -p 3000:3000 trading-dashboard
 ```

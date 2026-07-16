@@ -16,11 +16,9 @@ enum class OrderDecision {
 };
 
 struct StrategyEvent {
-    Metadata metadata;
+    TelemetryData telemetry_data;
     OrderDecision order_decision;
 };
-
-using StrategyRing = spsc_ring<StrategyEvent, 1024>;
 
 std::optional<StrategyEvent> determine_order_from_features(const FeatureBook& features);
 

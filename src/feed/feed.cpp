@@ -70,12 +70,20 @@ boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, K
     beast::flat_buffer buffer;
     while (true) {
         co_await ws.async_read(buffer, net::use_awaitable);
-        ring.produce(ExchangeMessage {
-                Metadata {
+
+        ring.produce(ExchangeMessage{
+            TelemetryData{
+                LatencyMetrics{
                     .message_received_wall_ts = std::chrono::system_clock::now(),
-                    .message_received_ts = std::chrono::steady_clock::now(),
-                    .monotonic_id = next_monotonic_id()},
-            beast::buffers_to_string(buffer.data())});
+                    .message_received_ts = std::chrono::steady_clock::now()
+                },
+                Identifier{
+                    .monotonic_id = next_monotonic_id()
+                }
+            },
+            beast::buffers_to_string(buffer.data())
+        });
+
         buffer.clear();
     }
 }

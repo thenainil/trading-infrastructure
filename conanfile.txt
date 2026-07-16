@@ -2,7 +2,6 @@
 boost/1.91.0
 openssl/3.3.2
 simdjson/3.13.0
-amqp-cpp/4.3.27
 
 [options]
 boost/*:header_only=True

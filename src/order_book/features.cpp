@@ -90,11 +90,27 @@ namespace {
         return bid_ofi + ask_ofi;;
     }
 
+    FeaturesTelemetry set_feature_telemetry(FeatureBook& feature_book) {
+        FeaturesTelemetry features_telemetry = feature_book.telemetry_data.features_telemetry;
+        features_telemetry.top_bid = feature_book.top_bid;
+        features_telemetry.top_ask = feature_book.top_ask;
+        features_telemetry.top_bid_qty = feature_book.top_bid_qty;
+        features_telemetry.top_ask_qty = feature_book.top_ask_qty;
+        features_telemetry.mid_price = feature_book.mid_price;
+        features_telemetry.microprice = feature_book.microprice;
+        features_telemetry.microprice_edge_tick = feature_book.microprice_edge_tick;
+        features_telemetry.spread = feature_book.spread;
+        features_telemetry.tick_spread = feature_book.tick_spread;
+        features_telemetry.top_level_imbalance = feature_book.top_level_imbalance;
+        features_telemetry.ofi = feature_book.ofi;
+        features_telemetry.top_n_imbalance = feature_book.top_n_imbalance;
+        features_telemetry.top_n_ofi = feature_book.top_n_ofi;
+        return features_telemetry;
+    }
 }
 
 std::optional<FeatureBook> Features::calculate_features(const OrderBook& order_book) {
     FeatureBook feature_book{};
-    feature_book.metadata = order_book.metadata;
 
     //Base
     const std::array<BookLevel, N> top_n_bids = order_book.get_top_n_levels(true);
@@ -121,6 +137,10 @@ std::optional<FeatureBook> Features::calculate_features(const OrderBook& order_b
     feature_book.top_n_ofi = calculate_n_depth_ofi(3, top_n_bids, top_n_asks,
         previous_book_exists, previous_top_bids, previous_top_asks);
 
-    feature_book.metadata.feature_calculation_complete_ts = std::chrono::steady_clock::now();
+    //Telemetry
+    feature_book.telemetry_data = order_book.telemetry_data;
+    feature_book.telemetry_data.features_telemetry = set_feature_telemetry(feature_book);
+    feature_book.telemetry_data.latency_metrics.feature_calculation_complete_ts = std::chrono::steady_clock::now();
+
     return feature_book;
 }

@@ -11,7 +11,7 @@
 #include <optional>
 
 #include "feed.h"
-#include "common/metadata.h"
+#include "common/telemetry.h"
 
 struct BookLevel {
     double price{};
@@ -19,7 +19,7 @@ struct BookLevel {
 };
 
 struct MarketEvent {
-    Metadata metadata;
+    TelemetryData telemetry_data;
     std::string type;
     std::vector<BookLevel> bids;
     std::vector<BookLevel> asks;
