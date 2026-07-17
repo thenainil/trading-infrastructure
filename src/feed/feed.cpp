@@ -48,6 +48,7 @@ boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, K
     auto executor = co_await net::this_coro::executor;
     tcp::resolver resolve{executor};
     websocket::stream<ssl::stream<tcp::socket>> ws{executor, ctx};
+    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
 
     const auto results = co_await resolve.async_resolve(host, port, net::use_awaitable);
     const auto endpoint = co_await net::async_connect(beast::get_lowest_layer(ws), results, net::use_awaitable);
@@ -88,6 +89,25 @@ boost::asio::awaitable<void> open_websocket(WebSocketConfig web_socket_config, K
     }
 }
 
+namespace {
+    boost::asio::awaitable<void> consume_with_reconnect(WebSocketConfig ws_config, KrakenSpscRing& ring) {
+        auto executor = co_await net::this_coro::executor;
+        net::steady_timer reconnect_timer{executor};
+
+        while (true) {
+            try {
+                co_await open_websocket(ws_config, ring);
+            } catch (const std::exception& ex) {
+                std::cerr << "Kraken session disconnected: " << ex.what() << '\n';
+            }
+
+            std::cerr << "Reconnecting to Kraken WebSocket in 1s\n";
+            reconnect_timer.expires_after(std::chrono::seconds(1));
+            co_await reconnect_timer.async_wait(net::use_awaitable);
+        }
+    }
+}
+
 void consume_kraken_websocket(net::io_context& ioc, KrakenSpscRing& ring) {
     const std::string host = "ws.kraken.com";
     const std::string port = "443";
@@ -98,13 +118,13 @@ void consume_kraken_websocket(net::io_context& ioc, KrakenSpscRing& ring) {
     
     const WebSocketConfig ws_config{host, port, path, subscribe, WsMessageMode::Text};
 
-    net::co_spawn(ioc, open_websocket(ws_config, ring),
+    net::co_spawn(ioc, consume_with_reconnect(ws_config, ring),
         [](std::exception_ptr e) {
             if (e) {
                 try {
                     std::rethrow_exception(e);
                 } catch (const std::exception& ex) {
-                    std::cerr << "Kraken Session Error: " << ex.what() << '\n';
+                    std::cerr << "Kraken reconnect loop error: " << ex.what() << '\n';
                 }
             }
         });

@@ -4,8 +4,14 @@
 
 #include "order-book/order_book.h"
 
+#include <iostream>
+
 bool OrderBook::update_book(const MarketEvent& market_event) {
     telemetry_data = market_event.telemetry_data;
+
+    if (market_event.type == "snapshot" || market_event.type == "SNAPSHOT") {
+        reset_book();
+    }
 
     const std::vector<BookLevel>& asks = market_event.asks;
     const std::vector<BookLevel>& bids = market_event.bids;
@@ -59,6 +65,18 @@ double OrderBook::index_to_price(const std::size_t index) {
 
 std::size_t OrderBook::price_to_index(const double price) {
     return std::llround(price / tick_size);
+}
+
+void OrderBook::reset_book() {
+    ask_order_book.fill(0.0);
+    bid_order_book.fill(0.0);
+    ask_bit_map.fill(0);
+    bid_bit_map.fill(0);
+    top_n_asks.fill(BookLevel{});
+    top_n_bids.fill(BookLevel{});
+    top_ask = BookLevel{};
+    top_bid = BookLevel{};
+    telemetry_data.book_telemetry = BookTelemetry{};
 }
 
 void OrderBook::set_top_n_prices() {

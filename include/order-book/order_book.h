@@ -32,6 +32,7 @@ private:
 
     static double index_to_price(std::size_t index);
     static std::size_t price_to_index(double price);
+    void reset_book();
     void set_top_n_prices();
     void set_book_telemetry();
     void set_price_level_active(const size_t& idx, const bool& isBid);

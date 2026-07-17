@@ -1,224 +1,174 @@
-# Trading Infrastructure
+# Orderbook
 
-A C++23 trading-infrastructure project focused on real-time market-data
-ingestion, low-overhead inter-thread handoff, order book construction,
-microstructure feature calculation, strategy signaling, and telemetry export.
+A C++23 real-time order book pipeline for live Kraken BTC/USD market data.
 
-This is not production trading software and should not be used to place orders
-or make financial decisions. The goal is to build an inspectable systems project
-that exercises the mechanics behind latency-sensitive trading infrastructure.
+The backend ingests Kraken WebSocket book updates, parses messages with
+`simdjson`, applies price-level updates to an in-memory order book, computes
+market microstructure features, emits rule-based strategy decisions, and exports
+telemetry over WebSocket to a dashboard.
 
-## Project Status
+This is a systems project, not production trading software. It should not be
+used to place orders or make financial decisions.
 
-This repository is being left as a C++ prototype / reference implementation.
-Future development is moving to a Java implementation, likely with this repo
-serving as the systems and latency-learning baseline.
+## Highlights
 
-The current C++ code is still useful for:
+- Live Kraken WebSocket v2 ingestion over TLS with Boost.Asio and Boost.Beast
+- `simdjson` ondemand parsing into typed market events
+- Staged `std::jthread` pipeline connected by custom bounded SPSC ring buffers
+- Fixed-array order book indexed by normalized tick price
+- Packed `uint64_t` bitmaps for active price-level tracking
+- Cached top-N bid/ask levels for fast feature calculation and telemetry
+- Microstructure features: spread, tick spread, midprice, microprice,
+  microprice edge, top-level imbalance, top-N imbalance, and order-flow
+  imbalance
+- Rule-based strategy decisions: `STRONG_BUY`, `BUY`, `WAIT`, `SELL`,
+  `STRONG_SELL`
+- Direct C++ to dashboard telemetry over WebSocket, without RabbitMQ or another
+  message broker
+- React/TypeScript dashboard for live depth, features, decisions, and rolling
+  latency metrics
 
-- Kraken WebSocket ingestion experiments
-- parser/order-book latency measurement
-- direct WebSocket telemetry publishing
-- the React metrics dashboard
-- reference implementations of the ring buffer, order book, features, and
-  staged thread pipeline
+## Architecture
+
+```text
+Kraken WebSocket
+    -> ExchangeMessage { telemetry, raw JSON }
+    -> KrakenSpscRing
+    -> simdjson parser
+    -> MarketEvent { telemetry, bids, asks, type }
+    -> OrderBookRing
+    -> OrderBook update
+    -> FeatureBook { telemetry, microstructure features }
+    -> FeatureBookRing
+    -> StrategyEvent { telemetry, decision }
+    -> TelemetrySpscRing
+    -> WebSocket telemetry publisher
+    -> Dashboard ingest server
+```
 
 ## Repository Layout
 
 ```text
-include/  Public headers
-src/      C++ source files
-dashboard/ React metrics dashboard and WebSocket-backed HTTP server
+include/      C++ headers
+src/          C++ source files
+dashboard/    React dashboard and Node.js ingest/SSE server
 ```
 
-Build and dependency files live at the repository root:
+Important files:
 
 ```text
-CMakeLists.txt
-CMakePresets.json
-conanfile.txt
-conan_provider.cmake
-```
-
-## Current Status
-
-Implemented:
-
-- Connects to Kraken's public WebSocket v2 API over TLS
-- Subscribes to live BTC/USD book updates
-- Uses Boost.Asio and Boost.Beast for asynchronous WebSocket I/O
-- Parses Kraken book messages with `simdjson` ondemand APIs
-- Normalizes exchange messages into typed `MarketEvent` objects
-- Moves data between pipeline stages with custom bounded SPSC ring buffers
-- Uses `std::jthread` workers for feed, parser, order book, strategy, and
-  telemetry stages
-- Applies price-level updates into an in-memory order book
-- Tracks active price levels with packed `uint64_t` bitmaps
-- Maintains cached top-N bid and ask levels
-- Computes market microstructure features including spread, mid price,
-  microprice, imbalance, and order-flow imbalance
-- Emits rule-based strategy decisions:
-  `STRONG_BUY`, `BUY`, `WAIT`, `SELL`, or `STRONG_SELL`
-- Carries metadata through the pipeline for latency instrumentation
-- Publishes latency telemetry directly to the dashboard over WebSocket
-- Includes a React dashboard that ingests latency metrics over WebSocket and
-  streams aggregates to the browser over a small Node.js HTTP/SSE server
-
-Still in progress:
-
-- Kraken checksum validation and gap handling
-- Reconnect and resubscription behavior
-- Replayable market-data tests
-- Unit tests and microbenchmarks
-- Cleaner shutdown behavior for long-running worker threads
-- Risk module and execution path
-
-## Architecture
-
-Current pipeline:
-
-```text
-Kraken WebSocket
-    -> ExchangeMessage { metadata, raw JSON }
-    -> KrakenSpscRing
-    -> simdjson parser
-    -> MarketEvent { metadata, bids, asks, type }
-    -> OrderBookRing
-    -> OrderBook update path
-    -> FeatureBook { metadata, microstructure features }
-    -> FeatureBookRing
-    -> StrategyEvent { metadata, order decision }
-    -> StrategyRing
-    -> Telemetry / future risk path
+include/templates/spsc_ring.h          Custom SPSC ring buffer
+include/common/telemetry.h             Telemetry payload structs
+include/common/websocket_publisher.h   C++ telemetry WebSocket publisher
+src/feed/feed.cpp                      Kraken WebSocket client
+src/feed/parser.cpp                    simdjson Kraken book parser
+src/order_book/order_book.cpp          Bitmap-backed order book
+src/order_book/features.cpp            Microstructure feature calculation
+src/strategy/strategy.cpp              Rule-based strategy decisions
+src/common/telemetry.cpp               Telemetry JSON serialization
+dashboard/server/index.ts              WebSocket ingest + HTTP/SSE server
+dashboard/src/App.tsx                  Dashboard UI
 ```
 
 ## Core Components
 
-### Feed Client
+### Feed
 
-Connects to Kraken's WebSocket endpoint using Boost.Asio/Beast over OpenSSL.
-Incoming messages are timestamped locally and published into a bounded SPSC
-queue.
-
-Relevant files:
-
-- `include/feed/feed.h`
-- `src/feed/feed.cpp`
+Connects to Kraken's public WebSocket v2 API over TLS, subscribes to live
+BTC/USD book updates, timestamps each received message, and publishes raw JSON
+into a bounded SPSC queue.
 
 ### Parser
 
-Uses `simdjson` ondemand APIs to extract book-channel messages and convert them
-into typed `MarketEvent` objects.
-
-Relevant files:
-
-- `include/feed/parser.h`
-- `src/feed/parser.cpp`
-- `include/common/time_utils.h`
-- `src/common/time_utils.cpp`
+Uses `simdjson` ondemand APIs to filter Kraken `book` channel messages and
+normalize bid/ask updates into typed `MarketEvent` objects.
 
 ### SPSC Ring Buffer
 
 The pipeline uses custom single-producer/single-consumer ring buffers between
-stages. The ring uses fixed capacity, atomic indexes, acquire/release memory
-ordering, cache-line alignment, and move semantics.
-
-Relevant file:
-
-- `include/templates/spsc_ring.h`
-
-### Metadata
-
-`Metadata` is the timing and identity object carried through the pipeline. It
-tracks exchange timestamps, local receive timestamps, local stage-completion
-timestamps, message id, and symbol.
-
-Relevant files:
-
-- `include/common/metadata.h`
-- `src/common/metadata.cpp`
+stages. The ring uses fixed power-of-two capacity, atomic read/write indexes,
+acquire/release memory ordering, cache-line alignment, and move semantics.
 
 ### Order Book
 
-The order book stores price levels in fixed-size arrays indexed by normalized
-tick price. Active levels are tracked with packed bitmaps, and top-N bid/ask
-levels are cached for feature calculation.
-
-Relevant files:
-
-- `include/order-book/order_book.h`
-- `src/order_book/order_book.cpp`
+The order book stores quantities in fixed-size arrays indexed by normalized
+tick price. Active levels are tracked with packed bitmaps, allowing the update
+path to maintain cached top-N bid and ask levels without scanning the full book
+on every telemetry export.
 
 ### Features
 
-The feature layer converts current order book state into a `FeatureBook`.
-Currently calculated features include top bid/ask, quantities, spread, tick
-spread, mid price, microprice, microprice edge, top-level imbalance, top-N
-imbalance, top-level OFI, and top-N OFI.
+The feature layer computes market microstructure values from the current top-N
+book:
 
-Relevant files:
-
-- `include/order-book/features.h`
-- `src/order_book/features.cpp`
+- Top bid/ask and quantities
+- Spread and tick spread
+- Midprice
+- Microprice
+- Microprice edge in ticks
+- Top-level imbalance
+- Top-N imbalance
+- Top-level OFI
+- Top-N OFI
 
 ### Strategy
 
-The strategy layer consumes `FeatureBook` and emits a `StrategyEvent`. The
-current strategy is intentionally rule-based and interpretable.
+The strategy layer is intentionally simple and interpretable. It consumes the
+feature book and emits one of:
 
-Relevant files:
-
-- `include/strategy/strategy.h`
-- `src/strategy/strategy.cpp`
-
-### Telemetry Export
-
-The C++ worker publishes JSON latency metrics directly to the dashboard over a
-WebSocket connection. Set `METRICS_WS_URL` to the dashboard ingest endpoint;
-the default is `ws://127.0.0.1:3000/ingest`.
-
-Relevant files:
-
-- `include/common/websocket_publisher.h`
-- `include/common/metadata.h`
-- `src/common/metadata.cpp`
-
-### Metrics Dashboard
-
-The `dashboard/` directory contains a minimal React dashboard. A small Node.js
-server accepts worker telemetry on a WebSocket ingest endpoint, serves the React
-build, and streams rolling min, p50, p99, p99.9, and max latency values to the
-browser over server-sent events.
-
-Relevant files:
-
-- `dashboard/server/index.ts`
-- `dashboard/src/App.tsx`
-- `dashboard/package.json`
-
-Local dashboard run:
-
-```bash
-cd dashboard
-npm install
-npm run build
-PORT=3000 npm start
+```text
+STRONG_BUY
+BUY
+WAIT
+SELL
+STRONG_SELL
 ```
 
-Railway deployments use `Dockerfile-app` for the C++ worker and
-`Dockerfile-dashboard` for the dashboard. Set `METRICS_WS_URL` on the worker to
-the dashboard URL, for example `ws://trading-dashboard:3000/ingest`; Railway
-provides `PORT` for the dashboard.
+### Telemetry
+
+Telemetry is carried through the pipeline and serialized as a nested JSON
+object containing:
+
+- Identifier data
+- Stage latency metrics
+- Top-N order book levels
+- Feature values
+- Strategy decision
+
+The C++ worker publishes telemetry directly to the dashboard using a persistent
+WebSocket connection.
+
+### Dashboard
+
+The dashboard includes:
+
+- Live order book depth chart
+- Bid/ask depth table
+- Decision history timeline
+- Current feature values
+- P99 and P99.9 total local latency charts
+- Rolling latency table with min, p50, mean, p99, p99.9, max, and standard
+  deviation
+
+The Node.js server accepts C++ telemetry on a WebSocket ingest endpoint, serves
+the React build, and streams browser updates over Server-Sent Events.
 
 ## Tech Stack
 
 - C++23
 - CMake
 - Conan
-- Boost.Asio / Boost.Beast
+- Boost.Asio
+- Boost.Beast
 - OpenSSL
 - simdjson
-- Node.js 20+ for the dashboard
+- TypeScript
+- React
+- Node.js
+- WebSocket
+- Server-Sent Events
+- Docker
+- Railway
 
 ## Build
 
@@ -227,52 +177,50 @@ Prerequisites:
 - C++23-capable compiler
 - CMake
 - Conan
+- Node.js 20+ for the dashboard
 
-Configure and build:
+Configure and build the C++ worker:
 
 ```bash
 cmake --preset debug
 cmake --build "$HOME/.cmake-build/trading-infrastructure/debug"
 ```
 
-Run:
+Run the C++ worker:
 
 ```bash
+METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
 "$HOME/.cmake-build/trading-infrastructure/debug/trading_infrastructure"
 ```
 
-Release build:
+Do not run `src/main.cpp` as a standalone file. Use the CMake target so Conan
+dependencies, include paths, source files, and link libraries are configured
+correctly.
 
-```bash
-cmake --preset release
-cmake --build "$HOME/.cmake-build/trading-infrastructure/release"
-```
+## Dashboard
 
-CLion should use the root `CMakeLists.txt` and run the
-`trading_infrastructure` CMake target. Do not run `src/main.cpp` as a standalone
-file; that bypasses CMake, Conan, include paths, source files, and link
-libraries.
-
-## Dashboard Telemetry
-
-Run the dashboard:
+Build and run the dashboard:
 
 ```bash
 cd dashboard
 npm install
-npm start
+npm run build
+PORT=3000 npm start
 ```
 
-Optional dashboard configuration:
+Useful dashboard variables:
 
-```bash
-METRICS_INGEST_PATH=/ingest \
-WINDOW_SIZE=10000 \
-REFRESH_MS=1000 \
-npm start
+```text
+PORT=3000
+HOST=0.0.0.0
+METRICS_INGEST_PATH=/ingest
+WINDOW_SIZE=10000
+REFRESH_MS=1000
+INGEST_BATCH_SIZE=1000
+DECISION_HISTORY_SIZE=240
 ```
 
-Run the C++ worker against the dashboard:
+Run the C++ worker against the local dashboard:
 
 ```bash
 METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
@@ -281,13 +229,25 @@ METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
 
 ## Docker
 
-Build the C++ worker container:
+Build the C++ worker image:
 
 ```bash
 docker build -f Dockerfile-app -t trading-infrastructure-app .
 ```
 
-Run it against a dashboard reachable from the worker container:
+Build the dashboard image:
+
+```bash
+docker build -f Dockerfile-dashboard -t trading-dashboard .
+```
+
+Run the dashboard:
+
+```bash
+docker run --rm -p 3000:3000 trading-dashboard
+```
+
+Run the worker against the dashboard:
 
 ```bash
 docker run --rm \
@@ -295,14 +255,36 @@ docker run --rm \
   trading-infrastructure-app
 ```
 
-Build the dashboard container:
+## Railway
 
-```bash
-docker build -f Dockerfile-dashboard -t trading-dashboard .
+Use two Railway services:
+
+- `trading-infrastructure-dashboard`
+- `trading-infrastructure-app`
+
+Dashboard variables:
+
+```text
+PORT=3000
+HOST=::
+METRICS_INGEST_PATH=/ingest
 ```
 
-Run the dashboard container:
+App variable:
 
-```bash
-docker run --rm -p 3000:3000 trading-dashboard
+```text
+METRICS_WS_URL=ws://<dashboard-private-domain>.railway.internal:3000/ingest
 ```
+
+Use the dashboard service's `RAILWAY_PRIVATE_DOMAIN`, not the app service's
+private domain. The dashboard is the WebSocket receiver; the C++ app is the
+publisher.
+
+## Current Limitations
+
+- Kraken checksum validation and gap recovery are not implemented yet
+- Replayable market-data tests are still needed
+- Unit tests and microbenchmarks are still needed
+- Shutdown behavior is intentionally simple for long-running worker threads
+- The strategy is rule-based and meant for inspection, not execution
+- There is no risk module or order execution path
