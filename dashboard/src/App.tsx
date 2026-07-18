@@ -438,6 +438,9 @@ function OrderBookPanel({ telemetry }: { telemetry: TelemetryPayload | null | un
   const bestBid = bids[0]?.price;
   const bestAsk = asks[0]?.price;
   const midPrice = bestBid !== undefined && bestAsk !== undefined ? (bestBid + bestAsk) / 2 : undefined;
+  const micropriceValue = telemetry?.features_telemetry.microprice;
+  const microprice =
+    typeof micropriceValue === "number" && Number.isFinite(micropriceValue) ? micropriceValue : undefined;
   const spread = bestBid !== undefined && bestAsk !== undefined ? bestAsk - bestBid : undefined;
   const bidDepth = cumulativeBids(bids);
   const askDepth = cumulativeAsks(asks);
@@ -450,7 +453,7 @@ function OrderBookPanel({ telemetry }: { telemetry: TelemetryPayload | null | un
   const askPath = buildDepthPath(askDepth, minPrice, maxPrice, maxQuantity);
   const bidArea = buildDepthArea(bidDepth, minPrice, maxPrice, maxQuantity);
   const askArea = buildDepthArea(askDepth, minPrice, maxPrice, maxQuantity);
-  const midX = midPrice === undefined ? null : depthX(midPrice, minPrice, maxPrice);
+  const micropriceX = microprice === undefined ? null : depthX(microprice, minPrice, maxPrice);
   const rowCount = Math.max(bids.length, asks.length);
 
   return (
@@ -466,8 +469,8 @@ function OrderBookPanel({ telemetry }: { telemetry: TelemetryPayload | null | un
             <strong className="bidText">{formatPrice(bestBid)}</strong>
           </div>
           <div>
-            <span>Mid</span>
-            <strong>{formatPrice(midPrice)}</strong>
+            <span>Microprice</span>
+            <strong>{formatPrice(microprice)}</strong>
           </div>
           <div>
             <span>Best Ask</span>
@@ -496,17 +499,17 @@ function OrderBookPanel({ telemetry }: { telemetry: TelemetryPayload | null | un
             {askArea ? <path className="depthArea depthAskArea" d={askArea} /> : null}
             {bidPath ? <path className="depthLine depthBidLine" d={bidPath} /> : null}
             {askPath ? <path className="depthLine depthAskLine" d={askPath} /> : null}
-            {midX !== null ? (
+            {micropriceX !== null ? (
               <>
                 <line
                   className="depthMidLine"
-                  x1={midX}
-                  x2={midX}
+                  x1={micropriceX}
+                  x2={micropriceX}
                   y1={depthChartPadding.top}
                   y2={depthChartHeight - depthChartPadding.bottom}
                 />
-                <text className="depthMidLabel" x={midX} y={depthChartPadding.top + 14}>
-                  {formatPrice(midPrice)}
+                <text className="depthMidLabel" x={micropriceX} y={depthChartPadding.top + 14}>
+                  {formatPrice(microprice)}
                 </text>
               </>
             ) : null}
