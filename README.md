@@ -167,10 +167,8 @@ the React build, and streams browser updates over Server-Sent Events.
 - Node.js
 - WebSocket
 - Server-Sent Events
-- Docker
-- Railway
 
-## Build
+## Local Setup
 
 Prerequisites:
 
@@ -179,36 +177,40 @@ Prerequisites:
 - Conan
 - Node.js 20+ for the dashboard
 
-Configure and build the C++ worker:
-
-```bash
-cmake --preset debug
-cmake --build "$HOME/.cmake-build/trading-infrastructure/debug"
-```
-
-Run the C++ worker:
-
-```bash
-METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
-"$HOME/.cmake-build/trading-infrastructure/debug/trading_infrastructure"
-```
-
-Do not run `src/main.cpp` as a standalone file. Use the CMake target so Conan
-dependencies, include paths, source files, and link libraries are configured
-correctly.
-
-## Dashboard
-
 Build and run the dashboard:
 
 ```bash
-cd dashboard
-npm install
-npm run build
-PORT=3000 npm start
+./run-dashboard.sh
 ```
 
-Useful dashboard variables:
+The dashboard script loads environment variables from `$HOME/.secrets/.env` when
+that file exists, installs dashboard dependencies with `npm ci`, builds the
+React app, and starts the Node.js ingest/SSE server.
+
+Build and run the C++ worker:
+
+```bash
+./run-engine.sh
+```
+
+The engine script loads environment variables from `$HOME/.secrets/.env` when
+that file exists, configures the release CMake preset, builds the release
+binary, and starts the C++ worker.
+
+Do not run `src/main.cpp` as a standalone file. Use the CMake target or
+`run-engine.sh` so Conan dependencies, include paths, source files, and link
+libraries are configured correctly.
+
+To run the worker manually against the local dashboard:
+
+```bash
+METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
+"$HOME/.cmake-build/trading-infrastructure/release/trading_infrastructure"
+```
+
+## Configuration
+
+Useful dashboard environment variables:
 
 ```text
 PORT=3000
@@ -220,71 +222,8 @@ INGEST_BATCH_SIZE=1000
 DECISION_HISTORY_SIZE=240
 ```
 
-Run the C++ worker against the local dashboard:
-
-```bash
-METRICS_WS_URL=ws://127.0.0.1:3000/ingest \
-"$HOME/.cmake-build/trading-infrastructure/debug/trading_infrastructure"
-```
-
-## Docker
-
-Build the C++ worker image:
-
-```bash
-docker build -f Dockerfile-app -t trading-infrastructure-app .
-```
-
-Build the dashboard image:
-
-```bash
-docker build -f Dockerfile-dashboard -t trading-dashboard .
-```
-
-Run the dashboard:
-
-```bash
-docker run --rm -p 3000:3000 trading-dashboard
-```
-
-Run the worker against the dashboard:
-
-```bash
-docker run --rm \
-  -e METRICS_WS_URL=ws://host.docker.internal:3000/ingest \
-  trading-infrastructure-app
-```
-
-## Railway
-
-Use two Railway services:
-
-- `trading-infrastructure-dashboard`
-- `trading-infrastructure-app`
-
-Dashboard variables:
+Useful engine environment variable:
 
 ```text
-PORT=3000
-HOST=::
-METRICS_INGEST_PATH=/ingest
+METRICS_WS_URL=ws://127.0.0.1:3000/ingest
 ```
-
-App variable:
-
-```text
-METRICS_WS_URL=ws://<dashboard-private-domain>.railway.internal:3000/ingest
-```
-
-Use the dashboard service's `RAILWAY_PRIVATE_DOMAIN`, not the app service's
-private domain. The dashboard is the WebSocket receiver; the C++ app is the
-publisher.
-
-## Current Limitations
-
-- Kraken checksum validation and gap recovery are not implemented yet
-- Replayable market-data tests are still needed
-- Unit tests and microbenchmarks are still needed
-- Shutdown behavior is intentionally simple for long-running worker threads
-- The strategy is rule-based and meant for inspection, not execution
-- There is no risk module or order execution path
